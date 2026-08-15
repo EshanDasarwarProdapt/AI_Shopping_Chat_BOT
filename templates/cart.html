@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Cart - DemoShop</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="logo"><a href="/">DemoShop</a></div>
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search products, brands, categories..." autocomplete="off">
+            <div class="search-results" id="search-results"></div>
+        </div>
+        <div class="nav-links">
+            <a href="/cart" id="nav-cart-count">🛒 Cart (0)</a>
+            <div class="nav-divider"></div>
+            {% if user %}
+                <a href="/dashboard">📊 Dashboard</a>
+                <a href="/logout">Logout</a>
+            {% else %}
+                <a href="/login">Login</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="section-header">
+            <h2>Shopping Cart</h2>
+        </div>
+
+        <div class="cart-layout">
+            <div class="cart-items" id="cart-items-container">
+                <!-- Rendered by JS -->
+            </div>
+            <div class="cart-summary">
+                <h2>Order Summary</h2>
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span id="cart-subtotal">$0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>Shipping</span>
+                    <span style="color: var(--accent-green);">Free</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total</span>
+                    <span id="cart-total">$0.00</span>
+                </div>
+                <button class="checkout-btn" onclick="goToCheckout()">Proceed to Checkout</button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        &copy; 2024 DemoShop. AI-Powered E-Commerce Platform.
+    </footer>
+
+    <!-- Chatbot Widget -->
+    <div id="chat-widget" class="chat-widget">
+        <div class="chat-header" id="chat-header">
+            <span class="chat-title">🤖 AI Shopping Assistant</span>
+            <span class="chat-toggle" id="chat-toggle">▲</span>
+        </div>
+        <div class="chat-body" id="chat-body" style="display: none;">
+            <div class="messages" id="messages">
+                <div class="message assistant">Hi! I'm your AI shopping assistant. How can I help you today?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask about products, compare...">
+                <button id="chat-send">Send</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast-container"></div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

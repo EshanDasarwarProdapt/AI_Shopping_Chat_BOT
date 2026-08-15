@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - DemoShop</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="logo"><a href="/">DemoShop</a></div>
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search products, brands, categories..." autocomplete="off">
+            <div class="search-results" id="search-results"></div>
+        </div>
+        <div class="nav-links">
+            <a href="/cart" id="nav-cart-count">🛒 Cart (0)</a>
+            <div class="nav-divider"></div>
+            <a href="/dashboard">📊 Dashboard</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="section-header" style="margin-top: 2rem;">
+            <h2>Welcome back, {{ user.username }}</h2>
+        </div>
+        
+        <!-- Order History -->
+        <div style="margin-top: 1.5rem;">
+            <div class="section-header">
+                <h2>Your Order History</h2>
+                <span class="badge">{{ orders|length }} items</span>
+            </div>
+            {% if orders %}
+                <div class="product-grid">
+                {% for product in orders %}
+                    <div class="product-card">
+                        <a href="/product/{{ product.id }}" style="text-decoration: none; color: inherit;">
+                            <div class="card-image">
+                                <img src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy">
+                                <span class="card-badge">{{ product.category }}</span>
+                            </div>
+                            <div class="card-body">
+                                <span class="card-category">{{ product.brand }}</span>
+                                <h3 class="card-title">{{ product.name }}</h3>
+                                <div class="card-footer">
+                                    <span class="card-price">${{ '%.2f'|format(product.price) }}</span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <h3>No orders yet</h3>
+                    <p>Start shopping to see your order history here.</p>
+                    <a href="/" class="btn btn-primary" style="margin-top: 1rem;">Browse Products</a>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Recommendations -->
+        <div style="margin-top: 2rem; margin-bottom: 3rem;">
+            <div class="section-header">
+                <h2>Recommended For You</h2>
+            </div>
+            {% if recommendations %}
+                <div class="product-grid">
+                {% for product in recommendations %}
+                    <div class="product-card">
+                        <a href="/product/{{ product.id }}" style="text-decoration: none; color: inherit;">
+                            <div class="card-image">
+                                <img src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy">
+                                <span class="card-badge">{{ product.category }}</span>
+                            </div>
+                            <div class="card-body">
+                                <span class="card-category">{{ product.brand }}</span>
+                                <h3 class="card-title">{{ product.name }}</h3>
+                                <div class="card-footer">
+                                    <span class="card-price">${{ '%.2f'|format(product.price) }}</span>
+                                </div>
+                            </div>
+                        </a>
+                        <div style="padding: 0 1.15rem 1rem;">
+                            <button class="btn btn-primary btn-block" onclick="addToCart('{{ product.id }}', '{{ product.name }}', {{ product.price }}, '{{ product.image_url }}')">Add to Cart</button>
+                        </div>
+                    </div>
+                {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <h3>No recommendations yet</h3>
+                    <p>Make a purchase to see personalized recommendations here!</p>
+                </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <footer class="footer">
+        &copy; 2024 DemoShop. AI-Powered E-Commerce Platform.
+    </footer>
+
+    <!-- Chatbot Widget -->
+    <div id="chat-widget" class="chat-widget">
+        <div class="chat-header" id="chat-header">
+            <span class="chat-title">🤖 AI Shopping Assistant</span>
+            <span class="chat-toggle" id="chat-toggle">▲</span>
+        </div>
+        <div class="chat-body" id="chat-body" style="display: none;">
+            <div class="messages" id="messages">
+                <div class="message assistant">Hi! I'm your AI shopping assistant. How can I help you today?</div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="Ask about products, compare...">
+                <button id="chat-send">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

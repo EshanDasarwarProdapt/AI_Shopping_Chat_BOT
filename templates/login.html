@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - DemoShop</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="navbar">
+        <div class="logo"><a href="/">DemoShop</a></div>
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Search products..." autocomplete="off">
+        </div>
+        <div class="nav-links">
+            <a href="/login">Login</a>
+            <a href="/register">Register</a>
+        </div>
+    </header>
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <h1>Welcome Back</h1>
+            <p class="auth-subtitle">Sign in to your DemoShop account</p>
+
+            <script>
+                const params = new URLSearchParams(window.location.search);
+                if (params.get('error')) {
+                    document.write('<div class="alert-error">Invalid username or password.</div>');
+                }
+                if (params.get('registered')) {
+                    document.write('<div class="alert-success">Account created successfully! Please login.</div>');
+                }
+            </script>
+
+            <form action="/login" method="POST">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" name="username" class="form-input" required placeholder="Enter your username">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" name="password" class="form-input" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg btn-block" style="margin-top: 0.5rem;">Sign In</button>
+            </form>
+            
+            <p class="auth-footer">
+                Don't have an account? <a href="/register">Create one</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
