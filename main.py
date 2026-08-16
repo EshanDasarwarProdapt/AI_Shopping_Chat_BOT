@@ -7,11 +7,19 @@ from sqlalchemy.orm import Session
 from typing import List, Dict, Any, Optional
 
 from database import get_db, init_db
+import json
+import os
+from dotenv import load_dotenv
+
+# Ensure dotenv is loaded before anything else
+load_dotenv()
+
 from models import Product, User, ChatSession
+
 from ai_assistant import chat_with_assistant
 from passlib.context import CryptContext
 from sqlalchemy.sql.expression import func
-import json
+from thefuzz import process, fuzz
 
 app = FastAPI(title="DemoShop AI Assistant")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -134,13 +142,26 @@ async def view_checkout(request: Request, db: Session = Depends(get_db)):
 def api_search(q: str = "", db: Session = Depends(get_db)):
     if not q or len(q) < 2:
         return []
-    search_term = f"%{q}%"
-    products = db.query(Product).filter(
-        Product.name.ilike(search_term) | 
-        Product.brand.ilike(search_term) | 
-        Product.category.ilike(search_term)
-    ).limit(6).all()
-    return [{"id": p.id, "name": p.name, "price": p.price, "category": p.category, "image_url": p.image_url} for p in products]
+        
+    all_products = db.query(Product).all()
+    # Create a searchable string for each product combining name, brand, and category
+    choices = {p.id: f"{p.name} {p.brand} {p.category}" for p in all_products}
+    
+    # Extract top matches
+    matches = process.extract(q, choices, limit=6, scorer=fuzz.token_set_ratio)
+    
+    # matches format: [(match_string, score, key), ...]
+    matched_ids = [match[2] for match in matches if match[1] > 40]
+    
+    if not matched_ids:
+        return []
+        
+    # Fetch original product objects in order of matches
+    products = db.query(Product).filter(Product.id.in_(matched_ids)).all()
+    products_by_id = {p.id: p for p in products}
+    ordered_products = [products_by_id[pid] for pid in matched_ids if pid in products_by_id]
+    
+    return [{"id": p.id, "name": p.name, "price": p.price, "category": p.category, "image_url": p.image_url} for p in ordered_products]
 
 # --- Auth Routes ---
 
@@ -198,20 +219,29 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     
     browsed_ids = user.browsing_history or []
     
-    # Get simple recommendations based on categories of purchased or browsed items
+    # Get recommendations using ML embeddings
     recommendations = []
     if orders or browsed_ids:
-        categories = list(set([o.category for o in orders]))
-        
-        if browsed_ids:
-            browsed_products = db.query(Product).filter(Product.id.in_(browsed_ids)).all()
-            categories.extend([p.category for p in browsed_products])
+        all_ids = list(set([o.id for o in orders] + browsed_ids))
+        if all_ids:
+            target_id = all_ids[-1]
+            target_product = db.query(Product).filter(Product.id == target_id).first()
             
-        categories = list(set(categories))
-        recommendations = db.query(Product).filter(
-            Product.category.in_(categories), 
-            ~Product.id.in_(purchased_ids)
-        ).order_by(func.random()).limit(4).all()
+            if target_product and target_product.embedding:
+                import numpy as np
+                target_vector = np.array(target_product.embedding)
+                all_products = db.query(Product).filter(Product.embedding.isnot(None)).all()
+                similarities = []
+                for p in all_products:
+                    if p.id in all_ids:
+                        continue
+                    vec = np.array(p.embedding)
+                    # Cosine similarity
+                    sim = np.dot(target_vector, vec) / (np.linalg.norm(target_vector) * np.linalg.norm(vec))
+                    similarities.append((sim, p))
+                
+                similarities.sort(key=lambda x: x[0], reverse=True)
+                recommendations = [item[1] for item in similarities[:4]]
         
     return templates.TemplateResponse("dashboard.html", {
         "request": request, 
@@ -253,6 +283,13 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
     return db.query(Product).filter(Product.id == product_id).first()
 
 # --- Chat API ---
+
+@app.get("/api/chat/history/{session_id}")
+def get_chat_history(session_id: int, db: Session = Depends(get_db)):
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if session and session.history:
+        return session.history
+    return []
 
 @app.post("/api/chat")
 def chat_endpoint(chat_request: ChatRequest, request: Request, db: Session = Depends(get_db)):

@@ -14,6 +14,7 @@ class Product(Base):
     description = Column(String)
     specifications = Column(JSON) # e.g. {"RAM": "16GB", "Storage": "512GB SSD"}
     image_url = Column(String)
+    embedding = Column(JSON) # Array of floats
 
 class User(Base):
     __tablename__ = 'users'

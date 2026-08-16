@@ -1,14 +1,17 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env first
+load_dotenv()
+
 import json
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from database import SessionLocal
 from models import Product, User
-from dotenv import load_dotenv
-
-# Load environment variables from .env
-load_dotenv()
+from thefuzz import process, fuzz
+import numpy as np
 
 # Ensure you have OPENAI_API_KEY set in your .env or environment
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -80,16 +83,22 @@ tools = [
 def search_catalog(query=None, category=None, max_price=None, min_price=None):
     db = SessionLocal()
     q = db.query(Product)
+    
     if category:
         q = q.filter(Product.category.ilike(f"%{category}%"))
-    if query:
-        q = q.filter(Product.name.ilike(f"%{query}%") | Product.description.ilike(f"%{query}%"))
     if max_price:
         q = q.filter(Product.price <= max_price)
     if min_price:
         q = q.filter(Product.price >= min_price)
     
     results = q.all()
+    
+    if query and results:
+        choices = {p.id: f"{p.name} {p.brand} {p.category} {p.description}" for p in results}
+        matches = process.extract(query, choices, limit=10, scorer=fuzz.token_set_ratio)
+        matched_ids = [match[2] for match in matches if match[1] > 40]
+        results = [p for p in results if p.id in matched_ids]
+        
     db.close()
     
     if not results:
@@ -147,32 +156,49 @@ def get_recommendations(user_id):
         db.close()
         return "User not found."
     
-    # Simple recommendation: fetch products they browsed OR purchased
+    # Get all browsed and purchased IDs
     browsed_ids = user.browsing_history or []
     purchased_ids = user.purchase_history or []
-    all_ids = list(set(browsed_ids + purchased_ids))
+    all_history_ids = list(set(browsed_ids + purchased_ids))
     
-    if not all_ids:
+    if not all_history_ids:
+        # Fallback if no history
+        products = db.query(Product).limit(4).all()
         db.close()
-        return "No browsing or purchase history to base recommendations on."
+        return json.dumps([{"id": p.id, "name": p.name, "price": p.price, "category": p.category, "reason": "Popular"} for p in products])
         
-    history_products = db.query(Product).filter(Product.id.in_(all_ids)).all()
-    categories = list(set([p.category for p in history_products]))
-    brands = list(set([p.brand for p in history_products]))
+    # Get the embedding of the most recently interacted product
+    target_id = all_history_ids[-1]
+    target_product = db.query(Product).filter(Product.id == target_id).first()
     
-    from sqlalchemy.sql.expression import func
+    if not target_product or not target_product.embedding:
+        db.close()
+        return "Not enough data for ML recommendations."
+        
+    target_vector = np.array(target_product.embedding)
     
-    recommendations = db.query(Product).filter(
-        (Product.category.in_(categories)) | (Product.brand.in_(brands)),
-        ~Product.id.in_(all_ids)
-    ).order_by(func.random()).limit(5).all()
+    # Fetch all products that have an embedding
+    all_products = db.query(Product).filter(Product.embedding.isnot(None)).all()
+    
+    similarities = []
+    for p in all_products:
+        if p.id in all_history_ids:
+            continue
+            
+        vec = np.array(p.embedding)
+        # Cosine similarity
+        sim = np.dot(target_vector, vec) / (np.linalg.norm(target_vector) * np.linalg.norm(vec))
+        similarities.append((sim, p))
+        
+    similarities.sort(key=lambda x: x[0], reverse=True)
+    top_products = [item[1] for item in similarities[:4]]
     
     db.close()
     
-    if not recommendations:
-        return "No new recommendations found for your preferred categories."
+    if not top_products:
+        return "Could not generate recommendations."
         
-    return json.dumps([{"name": p.name, "price": p.price, "category": p.category, "brand": p.brand} for p in recommendations])
+    return json.dumps([{"id": p.id, "name": p.name, "price": p.price, "category": p.category, "reason": "Based on semantic ML similarity"} for p in top_products])
 
 def handle_tool_call(tool_call, current_user_id: int):
     name = tool_call.function.name
@@ -206,33 +232,29 @@ def chat_with_assistant(messages: List[Dict[str, Any]], user_id: int = 1) -> str
     if not messages or messages[0].get("role") != "system":
         messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
         
-    response = client.chat.completions.create(
-        model="gpt-5-nano",  # or gpt-3.5-turbo
-        messages=messages,
-        tools=tools,
-        tool_choice="auto"
-    )
-    
-    response_message = response.choices[0].message
-    
-    if response_message.tool_calls:
-        # Append the assistant's tool call message
-        messages.append(response_message)
-        
-        for tool_call in response_message.tool_calls:
-            function_response = handle_tool_call(tool_call, user_id)
-            messages.append({
-                "tool_call_id": tool_call.id,
-                "role": "tool",
-                "name": tool_call.function.name,
-                "content": function_response,
-            })
-            
-        # Second call to get final response
-        second_response = client.chat.completions.create(
+    while True:
+        response = client.chat.completions.create(
             model="gpt-5-nano",
             messages=messages,
+            tools=tools,
+            tool_choice="auto"
         )
-        return second_response.choices[0].message.content
-    else:
-        return response_message.content
+        
+        response_message = response.choices[0].message
+        
+        if response_message.tool_calls:
+            # Append the assistant's tool call message
+            messages.append(response_message)
+            
+            for tool_call in response_message.tool_calls:
+                function_response = handle_tool_call(tool_call, user_id)
+                messages.append({
+                    "tool_call_id": tool_call.id,
+                    "role": "tool",
+                    "name": tool_call.function.name,
+                    "content": function_response,
+                })
+            # Loop continues, sending the tool outputs back to the model
+        else:
+            # No tool calls, we have the final answer
+            return response_message.content

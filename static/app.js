@@ -9,7 +9,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const chatSendBtn = document.getElementById("chat-send");
     const messagesContainer = document.getElementById("messages");
 
-    const sessionId = Math.floor(Math.random() * 1000000);
+    let sessionId = localStorage.getItem('demoShopChatSession');
+    if (!sessionId) {
+        sessionId = Math.floor(Math.random() * 1000000);
+        localStorage.setItem('demoShopChatSession', sessionId);
+    }
 
     if (chatHeader) {
         chatHeader.addEventListener("click", () => {
@@ -25,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function appendMessage(role, content) {
+        if (!content) return; // Skip empty messages
         const msgDiv = document.createElement("div");
         msgDiv.classList.add("message", role);
         if (role === 'assistant') {
@@ -35,6 +40,25 @@ document.addEventListener("DOMContentLoaded", () => {
         messagesContainer.appendChild(msgDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
+
+    async function loadChatHistory() {
+        try {
+            const response = await fetch(`/api/chat/history/${sessionId}`);
+            if (response.ok) {
+                const history = await response.json();
+                history.forEach(msg => {
+                    // Only show user and assistant text messages
+                    if ((msg.role === 'user' || msg.role === 'assistant') && msg.content) {
+                        appendMessage(msg.role, msg.content);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load chat history:", e);
+        }
+    }
+    
+    loadChatHistory();
 
     function showLoading() {
         const loadingDiv = document.createElement("div");
