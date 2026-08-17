@@ -1,5 +1,6 @@
 # AI Shopping Assistant Chatbot
 GitHub Link - https://github.com/EshanDasarwarProdapt/AI_Shopping_Chat_BOT
+
 A professional, full-stack Python-based e-commerce web application featuring a sophisticated AI Shopping Assistant. The assistant helps users find products, compare options, answers specification questions, and gives personalized recommendations, completely grounded in real product data.
 
 ## 🚀 Features
