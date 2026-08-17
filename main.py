@@ -1,3 +1,9 @@
+"""main.py
+
+FastAPI application entry point for DemoShop AI Assistant. Sets up routes for product
+browsing, search, authentication, cart, checkout, and chat APIs. Integrates the
+SQLAlchemy database session and the AI assistant utilities.
+"""
 from fastapi import FastAPI, Depends, Request, Form, Response, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +27,7 @@ from passlib.context import CryptContext
 from sqlalchemy.sql.expression import func
 from thefuzz import process, fuzz
 
-app = FastAPI(title="DemoShop AI Assistant")
+app = FastAPI(title="AvengersShop AI Assistant")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Auth dependency
@@ -222,7 +228,8 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     # Get recommendations using ML embeddings
     recommendations = []
     if orders or browsed_ids:
-        all_ids = list(set([o.id for o in orders] + browsed_ids))
+        purchased_ids = user.purchase_history or []
+        all_ids = list(dict.fromkeys(purchased_ids + browsed_ids))
         if all_ids:
             target_id = all_ids[-1]
             target_product = db.query(Product).filter(Product.id == target_id).first()
@@ -285,8 +292,13 @@ def get_product(product_id: int, db: Session = Depends(get_db)):
 # --- Chat API ---
 
 @app.get("/api/chat/history/{session_id}")
-def get_chat_history(session_id: int, db: Session = Depends(get_db)):
-    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+def get_chat_history(session_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if user:
+        session = db.query(ChatSession).filter(ChatSession.user_id == user.id).first()
+    else:
+        session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+        
     if session and session.history:
         return session.history
     return []
@@ -298,12 +310,18 @@ def chat_endpoint(chat_request: ChatRequest, request: Request, db: Session = Dep
     actual_user_id = user.id if user else chat_request.user_id
 
     # Retrieve or create chat session
-    session = db.query(ChatSession).filter(ChatSession.id == chat_request.session_id).first()
-    
-    if not session:
-        session = ChatSession(id=chat_request.session_id, user_id=actual_user_id, history=[])
-        db.add(session)
-        db.commit()
+    if user:
+        session = db.query(ChatSession).filter(ChatSession.user_id == user.id).first()
+        if not session:
+            session = ChatSession(user_id=user.id, history=[])
+            db.add(session)
+            db.commit()
+    else:
+        session = db.query(ChatSession).filter(ChatSession.id == chat_request.session_id).first()
+        if not session:
+            session = ChatSession(id=chat_request.session_id, user_id=actual_user_id, history=[])
+            db.add(session)
+            db.commit()
         
     # We need to make sure history is a list
     history = session.history if session.history else []
@@ -324,6 +342,10 @@ def chat_endpoint(chat_request: ChatRequest, request: Request, db: Session = Dep
         # Save to history
         history.append(user_message)
         history.append({"role": "assistant", "content": reply})
+        
+        # Implement rolling window limit (keep only last 20 messages)
+        if len(history) > 20:
+            history = history[-20:]
         
         # Update DB
         session.history = history

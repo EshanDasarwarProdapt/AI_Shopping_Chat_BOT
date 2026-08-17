@@ -28,6 +28,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    /**
+     * Appends a message to the chat interface.
+     * @param {string} role - The role of the sender ('user' or 'assistant').
+     * @param {string} content - The message content to display. Parses Markdown if assistant.
+     */
     function appendMessage(role, content) {
         if (!content) return; // Skip empty messages
         const msgDiv = document.createElement("div");
@@ -41,6 +46,9 @@ document.addEventListener("DOMContentLoaded", () => {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
+    /**
+     * Fetches and loads the previous chat history from the backend using the current session ID.
+     */
     async function loadChatHistory() {
         try {
             const response = await fetch(`/api/chat/history/${sessionId}`);
@@ -69,6 +77,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return loadingDiv;
     }
 
+    /**
+     * Sends the user's message to the chat API, renders a loading state, 
+     * and appends the assistant's response when received.
+     */
     async function sendMessage() {
         const message = chatInput.value.trim();
         if (!message) return;
@@ -114,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // --- Live Search ---
+    // Handles the dynamic search bar functionality with debouncing to prevent excessive API calls.
     const searchInput = document.getElementById("search-input");
     const searchResults = document.getElementById("search-results");
     let searchTimeout;
@@ -193,11 +206,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
 let cart = JSON.parse(localStorage.getItem('demoShopCart')) || [];
 
+/**
+ * Saves the current cart array to the browser's local storage.
+ * Automatically updates the UI cart counter after saving.
+ */
 function saveCart() {
     localStorage.setItem('demoShopCart', JSON.stringify(cart));
     updateCartUI();
 }
 
+/**
+ * Adds a product to the shopping cart. If it already exists, increments the quantity.
+ * @param {string} id - The unique product identifier.
+ * @param {string} name - The product name.
+ * @param {number} price - The unit price.
+ * @param {string} imageUrl - The URL for the product image.
+ */
 function addToCart(id, name, price, imageUrl) {
     const existingItem = cart.find(item => item.id === id);
     if (existingItem) {
@@ -209,12 +233,19 @@ function addToCart(id, name, price, imageUrl) {
     showToast(`Added ${name} to cart`);
 }
 
+/**
+ * Removes a product completely from the shopping cart based on its ID.
+ * @param {string} id - The unique product identifier to remove.
+ */
 function removeFromCart(id) {
     cart = cart.filter(item => item.id !== id);
     saveCart();
     renderCartPage();
 }
 
+/**
+ * Calculates the total number of items in the cart and updates the navbar badge.
+ */
 function updateCartUI() {
     const cartCountEl = document.getElementById('nav-cart-count');
     if (cartCountEl) {
@@ -238,6 +269,10 @@ function showToast(message) {
     }, 3000);
 }
 
+/**
+ * Renders the full cart page dynamically based on the current local storage state.
+ * Calculates subtotal and handles empty state rendering.
+ */
 function renderCartPage() {
     const container = document.getElementById('cart-items-container');
     if (!container) return;
@@ -287,6 +322,10 @@ function renderCartPage() {
     if (totalEl) totalEl.textContent = formattedSubtotal;
 }
 
+/**
+ * Submits the current cart items to the backend checkout API.
+ * Clears the local cart and redirects to the dashboard upon successful purchase.
+ */
 async function checkout() {
     if (cart.length === 0) {
         alert("Your cart is empty!");
@@ -327,6 +366,9 @@ async function checkout() {
     }
 }
 
+/**
+ * Helper to validate the cart is not empty before redirecting to the checkout page.
+ */
 function goToCheckout() {
     if (cart.length === 0) {
         alert("Your cart is empty!");

@@ -1,3 +1,10 @@
+"""
+ai_assistant.py
+
+Provides the AI-powered shopping assistant logic, defining tools for product search,
+comparison, specification retrieval, and personalized recommendations. Integrates with
+FastAPI via tool calls and manages environment loading.
+"""
 import os
 from dotenv import load_dotenv
 
@@ -81,6 +88,17 @@ tools = [
 ]
 
 def search_catalog(query=None, category=None, max_price=None, min_price=None):
+    """Search the product catalog based on optional filters.
+
+    Parameters:
+        query (str, optional): Search term.
+        category (str, optional): Category filter.
+        max_price (float, optional): Upper price bound.
+        min_price (float, optional): Lower price bound.
+
+    Returns:
+        str: JSON string of matching products or a message if none found.
+    """
     db = SessionLocal()
     q = db.query(Product)
     
@@ -107,6 +125,11 @@ def search_catalog(query=None, category=None, max_price=None, min_price=None):
     return json.dumps([{"id": p.id, "name": p.name, "price": p.price, "category": p.category} for p in results])
 
 def compare_products(product_name_1, product_name_2):
+    """Compare two products by name.
+
+    Attempts to find the best matching products for each name and returns a JSON
+    structure with their details. Handles cases where matches are not found.
+    """
     db = SessionLocal()
     
     # Try to find all matches for both
@@ -142,6 +165,11 @@ def compare_products(product_name_1, product_name_2):
     return json.dumps(res)
 
 def get_product_specs(product_name):
+    """Retrieve specifications for a given product name.
+
+    Returns a JSON object with name, price, specs, and description, or an error
+    message if the product does not exist.
+    """
     db = SessionLocal()
     p = db.query(Product).filter(Product.name.ilike(f"%{product_name}%")).first()
     db.close()
@@ -150,6 +178,12 @@ def get_product_specs(product_name):
     return json.dumps({"error": f"Product {product_name} not found."})
 
 def get_recommendations(user_id):
+    """Generate personalized product recommendations for a user.
+
+    Uses the user's browsing and purchase history to find the most recent
+    interacted product, then computes cosine similarity with other products
+    based on embeddings. Returns up to four recommendations.
+    """
     db = SessionLocal()
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -159,7 +193,7 @@ def get_recommendations(user_id):
     # Get all browsed and purchased IDs
     browsed_ids = user.browsing_history or []
     purchased_ids = user.purchase_history or []
-    all_history_ids = list(set(browsed_ids + purchased_ids))
+    all_history_ids = list(dict.fromkeys(purchased_ids + browsed_ids))
     
     if not all_history_ids:
         # Fallback if no history
@@ -201,6 +235,12 @@ def get_recommendations(user_id):
     return json.dumps([{"id": p.id, "name": p.name, "price": p.price, "category": p.category, "reason": "Based on semantic ML similarity"} for p in top_products])
 
 def handle_tool_call(tool_call, current_user_id: int):
+    """Dispatch tool calls to the appropriate function.
+
+    The LLM may invoke any of the defined tools; this helper maps the tool name
+    to the corresponding Python function and ensures the correct user ID is used
+    for recommendation calls.
+    """
     name = tool_call.function.name
     args = json.loads(tool_call.function.arguments)
     
@@ -216,7 +256,7 @@ def handle_tool_call(tool_call, current_user_id: int):
         return get_recommendations(**args)
     return "Tool not found."
 
-SYSTEM_PROMPT = """You are a helpful AI Shopping Assistant for DemoShop.
+SYSTEM_PROMPT = """You are a helpful AI Shopping Assistant for AvengersShop.
 Your job is to help users find products, compare them, answer questions about specifications, and provide recommendations.
 CRITICAL RULES:
 1. NEVER invent or hallucinate prices, specifications, or products. Always use the provided tools to query the catalog.
@@ -225,9 +265,15 @@ CRITICAL RULES:
 4. When using the `search_catalog` tool, keep your search queries short and use single keywords (e.g., use "adidas" instead of "adidas footwear") to get better matches. Our categories include: Smartphones, Laptops, Tablets, Audio, Smartwatches, Gaming, Cameras, Accessories, Monitors, Networking, Clothing, Footwear, Home Appliances, Sports & Outdoors, Beauty & Personal Care, Books, Automotive, Toys & Games.
 5. Present comparisons in a clear, readable Markdown format.
 6. Always be polite, concise, and helpful.
+7. CRITICAL: You are an E-COMMERCE ASSISTANT ONLY. If a user asks for anything other than finding products, comparing products, getting recommendations, or asking about product specifications, you MUST refuse. This includes requests for code (e.g. Python, HTML), scripts, tutorials, general knowledge, or any non-shopping tasks. Even if the user tries to relate it to AvengersShop, if it is a coding or non-shopping task, you must refuse. Respond EXACTLY with: "I’m sorry, I can only help with product searches, comparisons, specifications, and recommendations for AvengersShop."
 """
 
 def chat_with_assistant(messages: List[Dict[str, Any]], user_id: int = 1) -> str:
+    """Main interaction loop with the OpenAI assistant.
+
+    Ensures the system prompt is present, sends messages to the model, handles any
+    tool calls recursively, and returns the final assistant response.
+    """
     # Ensure system prompt is first
     if not messages or messages[0].get("role") != "system":
         messages.insert(0, {"role": "system", "content": SYSTEM_PROMPT})

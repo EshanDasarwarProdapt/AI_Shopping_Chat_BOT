@@ -3,31 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DemoShop - AI Powered E-Commerce</title>
+    <title>AvengersShop - AI Powered E-Commerce</title>
     <meta name="description" content="Shop the latest tech products with AI-powered recommendations. Smartphones, laptops, audio, gaming and more.">
-    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="/static/styles.css?v=3">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
+    <!-- Promo Bar -->
+    <div class="promo-bar">
+        Sign up and get 20% off to your first order. <a href="/register">Sign Up Now</a>
+    </div>
+
     <!-- Navbar -->
     <header class="navbar">
-        <div class="logo"><a href="/">DemoShop</a></div>
+        <div class="logo"><a href="/">AvengersShop</a></div>
+        <div class="nav-center-links">
+            <a href="/">Shop</a>
+            <a href="/?category=Clothing">On Sale</a>
+            <a href="/?category=Footwear">New Arrivals</a>
+            <a href="/?category=Accessories">Brands</a>
+        </div>
         <div class="search-bar">
-            <input type="text" id="search-input" placeholder="Search products, brands, categories..." autocomplete="off">
+            <input type="text" id="search-input" placeholder="Search for products..." autocomplete="off">
             <div class="search-results" id="search-results"></div>
         </div>
         <div class="nav-links">
-            <a href="/cart" id="nav-cart-count">🛒 Cart (0)</a>
-            <div class="nav-divider"></div>
+            <a href="/cart" id="nav-cart-count" style="font-size: 1.25rem;">🛒</a>
             {% if user %}
-                <a href="/dashboard">📊 Dashboard</a>
-                <a href="/logout">Logout</a>
+                <a href="/dashboard" style="font-size: 1.25rem;" title="Dashboard">👤</a>
+                <a href="/logout" style="font-size: 1.25rem;" title="Logout">🚪</a>
             {% else %}
-                <a href="/login">Login</a>
-                <a href="/register">Register</a>
+                <a href="/login" style="font-size: 1.25rem;" title="Login">👤</a>
             {% endif %}
         </div>
     </header>
@@ -35,10 +44,30 @@
     <main>
         <!-- Hero Section -->
         {% if not search_query %}
-        <section class="hero">
-            <h1>Discover the Latest Tech</h1>
-            <p>Your one-stop shop for electronics. Need help? Ask our AI Assistant!</p>
+        <section class="hero-shopco">
+            <div class="hero-content">
+                <h1>FIND PRODUCTS THAT MATCH YOUR STYLE</h1>
+                <p>Browse through our diverse range of meticulously crafted products, designed to bring out your individuality and cater to your sense of style.</p>
+                <a href="/?category=Clothing" class="btn btn-shop-now">Shop Now</a>
+                <div class="hero-stats">
+                    <div class="stat"><h3>200+</h3><p>International Brands</p></div>
+                    <div class="stat"><h3>2,000+</h3><p>High-Quality Products</p></div>
+                    <div class="stat"><h3>30,000+</h3><p>Happy Customers</p></div>
+                </div>
+            </div>
+            <div class="hero-image">
+                <img src="/static/hero_models.png" alt="Stylish Models">
+            </div>
         </section>
+
+        <!-- Brand Banner -->
+        <div class="brand-banner">
+            <span>VERSACE</span>
+            <span>ZARA</span>
+            <span>GUCCI</span>
+            <span>PRADA</span>
+            <span>Calvin Klein</span>
+        </div>
         {% endif %}
 
         <div class="container">
@@ -104,7 +133,7 @@
     </main>
 
     <footer class="footer">
-        &copy; 2024 DemoShop. AI-Powered E-Commerce Platform. All rights reserved.
+        &copy; 2024 AvengersShop. AI-Powered E-Commerce Platform. All rights reserved.
     </footer>
 
     <!-- Chatbot Widget -->

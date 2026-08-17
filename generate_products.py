@@ -1,3 +1,9 @@
+"""generate_products.py
+
+Utility script to generate a synthetic product catalog for DemoShop. It creates
+realistic product entries across multiple categories, brands, and types, and can
+populate the SQLite database via the ORM.
+"""
 import random
 
 def generate_synthetic_products(count=200):
